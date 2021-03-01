@@ -8,16 +8,16 @@
 
 #include <AccelStepper.h>
 
-const int vertikalDirPin = 2;
-const int vertikalStepPin = 3;
+const int vertikalDirPin = 8;
+const int vertikalStepPin = 9;
 String vIn = "0";
 String OvIn = "0";
 int vSpeed = 0;
 #define motorInterfaceType 1
 AccelStepper vertikal(motorInterfaceType, vertikalStepPin, vertikalDirPin);
 
-const int horisontalDirPin = 4;
-const int horisontalStepPin = 5;
+const int horisontalDirPin = 10;
+const int horisontalStepPin = 11;
 String hIn = "0";
 String OhIn = "0";
 int hSpeed = 0;
@@ -39,12 +39,12 @@ void setup() {
   Serial.begin(115200);
   Serial.setTimeout(15);
 
-  digitalWrite(8, HIGH);
-  digitalWrite(9, HIGH);
-  digitalWrite(10, HIGH);
-  digitalWrite(11, HIGH);
-  digitalWrite(12, HIGH);
-  digitalWrite(13, HIGH);
+  digitalWrite(2, HIGH);
+  digitalWrite(3, HIGH);
+  digitalWrite(4, HIGH);
+  digitalWrite(5, HIGH);
+  digitalWrite(6, HIGH);
+  digitalWrite(7, HIGH);
 
 }
 
