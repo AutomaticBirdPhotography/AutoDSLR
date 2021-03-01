@@ -5,9 +5,9 @@ wait = False
 
 ser = serial.Serial("COM3", 115200)
 
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
 
-tracker = cv2.TrackerKCF_create()
+tracker = cv2.TrackerCSRT_create()
 
 success, img = cap.read()
 img = cv2.flip(img, 1)
@@ -56,8 +56,8 @@ def crop(img, x, y, w, h, iw, ih):
 def move(centerRect, centerFrame):
     hDiff = centerFrame[0]-centerRect[0]
     vDiff = centerFrame[1]-centerRect[1]
-    hSpeed = map(hDiff, (centerFrame[0]-0), (centerFrame[0]-centerFrame[0]*2), -100, 100)
-    vSpeed = map(vDiff, (centerFrame[1]-0), (centerFrame[1]-centerFrame[1]*2), 100, -100)
+    hSpeed = map(hDiff, (centerFrame[0]-0), (centerFrame[0]-centerFrame[0]*2), -750, 750)
+    vSpeed = map(vDiff, (centerFrame[1]-0), (centerFrame[1]-centerFrame[1]*2), -750, 750)
 
     global i
     if (i >= 4):
@@ -88,7 +88,7 @@ while (cap.isOpened()):
 
     if cv2.waitKey(1) & 0xff == ord('t') or joystick.get_button(3): #y
         wait = True
-        tracker = cv2.TrackerKCF_create()
+        tracker = cv2.TrackerCSRT_create()
         ser.write("{},{},".format(0, 0).encode())
         success, img = cap.read()
         img = cv2.flip(img, 1)
@@ -107,7 +107,7 @@ while (cap.isOpened()):
         img = cv2.flip(img, 1)
         cv2.imshow("Tracker", img)
         vSpeed = joystick.get_axis( 1 )*500
-        hSpeed = joystick.get_axis( 0 )*500
+        hSpeed = joystick.get_axis( 0 )*-500
 
         ser.write("{:.0f},{:.0f}".format(vSpeed, hSpeed).encode())
 
