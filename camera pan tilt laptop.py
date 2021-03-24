@@ -24,7 +24,7 @@ while True:
     height = int(dslrFrame.shape[0] * scale_percent / 100)
     dim = (width, height)
     dslrFrame = cv2.resize(dslrFrame, dim, interpolation = cv2.INTER_AREA)
-    cv2.imshow("Recieved video", dslrFrame)
+    cv2.imshow("Dslr video", dslrFrame)
 
     camFrame = camClient.recv()
     scale_percent = 200 # percent of original size
@@ -32,7 +32,7 @@ while True:
     height = int(camFrame.shape[0] * scale_percent / 100)
     dim = (width, height)
     camFrame = cv2.resize(camFrame, dim, interpolation = cv2.INTER_AREA)
-    cv2.imshow("Recieved video", camFrame)
+    cv2.imshow("Webcam video", camFrame)
 
     if cv2.waitKey(1) & 0xff == ord('s'):
         break
