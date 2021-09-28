@@ -11,10 +11,21 @@ from vidgear.gears import NetGear
 '''
 Notes:
 Dataen sendes slik: 
-s.send("{:.0f},{:.0f},{:.0f},{:.0f}".format(hSpeed, vSpeed, PanServo, TiltServo).encode())
+s.send("j{"lengden på bufferen"}{:.0f},{:.0f},{:.0f},{:.0f}".format(hSpeed, vSpeed, PanServo, TiltServo).encode())
 '''
 
 #-------------------------Starte ulike resurrser--------------------------------------------------
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+retries = 15
+
+while s.connect_ex(("192.168.4.1", 65432)) != 0:
+    print(f"Kunne ikke koble til! prøver {retries} ganger til")
+    retries -= 1
+    if retries <= 0:
+        print("Klarte ikke etablere kontakt med PanTilt!")
+        exit()
+    time.sleep(5)
+print("Koblet til PanTilt")
 
 options = {
     "request_timeout": 10,
@@ -22,30 +33,23 @@ options = {
 }
 dslrClient = NetGear("192.168.4.4", 2345, receive_mode=True, pattern = 0, **options)
 camClient = NetGear("192.168.4.4", 1234, receive_mode=True, pattern = 0, **options)
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-try:
-    s.connect(("192.168.4.1", 65432))
-except:
-    print("PanTilt down")
-    exit()
-print("Connected to PanTilt")
 
 
 pygame.init()
 time.sleep(1)
 joystick = pygame.joystick.Joystick(0)
 joystick.init()
-print("Loading...")
+print("Laster...")
 time.sleep(0.5)
 
 #----------------Variabler------------------------------------------------------------------
-dslrScale = 80 #%
+dslrScale = 80 #% må samsvare med verdier hos klient
 camScale = 100
 #halverer størrelsen på bildet, graphkordinatene må dobles | bildet ganges med scale/100, kordinatene deles med scale/100
 #dobler størrelsen, halverer kordinatene
 dslrFrameOrig = np.full((480, 640), 255, dtype='uint8') #dslrFrame = dslrClient.recv()
 dslrFrame = cv2.resize(dslrFrameOrig, (int(dslrFrameOrig.shape[1]*(dslrScale/100)), int(dslrFrameOrig.shape[0]*(dslrScale/100))), interpolation = cv2.INTER_AREA)
-camFrameOrig = np.full((640, 480), 255, dtype='uint8') #camFrame = camClient.recv()
+camFrameOrig = np.full((320, 240), 255, dtype='uint8') #camFrame = camClient.recv()
 camFrame = cv2.resize(camFrameOrig, (int(camFrameOrig.shape[1]*((camScale)/100)), int(camFrameOrig.shape[0]*(camScale/100))), interpolation = cv2.INTER_AREA)
 dslrBytes = cv2.imencode('.png', dslrFrame)[1].tobytes()
 camBytes = cv2.imencode('.png', camFrame)[1].tobytes()
@@ -144,14 +148,19 @@ def roi(start_point, end_point):
 def encode_video():
     global dslrBytes, camBytes
     while encode:
-        dslrFrameOrig = dslrClient.recv()
-        dslrFrame = cv2.resize(dslrFrameOrig, (int(dslrFrameOrig.shape[1]*(dslrScale/100)), int(dslrFrameOrig.shape[0]*(dslrScale/100))), interpolation = cv2.INTER_AREA)
-        cv2.rectangle(dslrFrame, (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (255,0,0), 7)
-        camFrameOrig = camClient.recv()
-        camFrame = cv2.resize(camFrameOrig, (int(camFrameOrig.shape[1]*((camScale)/100)), int(camFrameOrig.shape[0]*(camScale/100))), interpolation = cv2.INTER_AREA)
-        cv2.rectangle(camFrame, (int(camFrame.shape[1]/2), int(camFrame.shape[0]/2)), (int(camFrame.shape[1]/2), int(camFrame.shape[0]/2)), (255,0,0), 7)
-        dslrBytes = cv2.imencode('.ppm', dslrFrame)[1].tobytes()
-        camBytes = cv2.imencode('.ppm', camFrame)[1].tobytes()
+        try:
+            dslrFrameOrig = dslrClient.recv()
+            dslrFrame = cv2.resize(dslrFrameOrig, (int(dslrFrameOrig.shape[1]*(dslrScale/100)), int(dslrFrameOrig.shape[0]*(dslrScale/100))), interpolation = cv2.INTER_AREA)
+            cv2.rectangle(dslrFrame, (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (255,0,0), 7)
+            camFrameOrig = camClient.recv()
+            camFrame = cv2.resize(camFrameOrig, (int(camFrameOrig.shape[1]*((camScale)/100)), int(camFrameOrig.shape[0]*(camScale/100))), interpolation = cv2.INTER_AREA)
+            cv2.rectangle(camFrame, (int(camFrame.shape[1]/2), int(camFrame.shape[0]/2)), (int(camFrame.shape[1]/2), int(camFrame.shape[0]/2)), (255,0,0), 7)
+            dslrBytes = cv2.imencode('.ppm', dslrFrame)[1].tobytes()
+            camBytes = cv2.imencode('.ppm', camFrame)[1].tobytes()
+        except Exception as e:
+            print("!!!!!!!!!!!ERROR!!!!!!!!!!")
+            print(e)
+            break
     cv2.destroyAllWindows()
         
 threading._start_new_thread(encode_video, ())
@@ -212,6 +221,7 @@ while True:
         if event != old_event or joyInput:  #unngå at to eventer skal være like rett etter hverandre og oppheve seg selv: stopp like etter stopp - stopper og starter umiddelbart
 
             if event == 'X' or event == sg.WIN_CLOSED or joystick.get_button(8): #back
+                print("Program stoppet av bruker")
                 break
 
             elif event == 'Sentrér' or joystick.get_button(1): #a
@@ -258,7 +268,6 @@ while True:
                     tracking = False
                     point = False
                     update_labels("joy")
-                    s.send("j".encode())
                     time.sleep(0.2)
             
             elif event == 'Start klikk' or joystick.get_button(9): #start
@@ -289,10 +298,17 @@ while True:
             
             if (hSpeed != Old_hSpeed or vSpeed != Old_vSpeed or PanServo != Old_PanServo or TiltServo != Old_TiltServo):
                 if first_value:
-                    s.send("j0,0,0,0".encode())
+                    s.send("j090,0,0,0".encode())#09 foran der er hvor lang stringen er 
                     first_value = False
                 else:
-                    s.send("j{:.0f},{:.0f},{:.0f},{:.0f}".format(hSpeed, vSpeed, PanServo, TiltServo).encode())
+                    data_string = "{:.0f},{:.0f},{:.0f},{:.0f}".format(hSpeed, vSpeed, PanServo, TiltServo)
+                    data_length = len(data_string)
+                    print(data_length)
+                    if data_length >= 10:
+                        data_string = "j{}".format(data_length) + data_string
+                    else:
+                        data_string = "j0{}".format(data_length) + data_string
+                    s.send(data_string.encode())
                     #time.sleep(0.5)
             Old_hSpeed = hSpeed
             Old_vSpeed = vSpeed
@@ -335,9 +351,10 @@ while True:
                     if prior_rect:
                         graph.delete_figure(prior_rect)
                 elif point:
-                    s.send("m{}, {}".format(int(start_point[0]/(dslrScale/100)), int(start_point[1]/(dslrScale/100))).encode())
+                    s.sendall("m{}, {}".format(int(start_point[0]/(dslrScale/100)), int(start_point[1]/(dslrScale/100))).encode())
                     if prior_rect:
                         graph.delete_figure(prior_rect)
+                    time.sleep(0.7)
                 if update:
                     info = window["info"]
                     info.update(value=f"x: {bbox[0]}, y: {bbox[1]} width: {bbox[2]} height: {bbox[3]}")
@@ -350,6 +367,7 @@ while True:
         old_event = event   #unngå at to eventer skal være like rett etter hverandre og oppheve seg selv: stopp like etter stopp - stopper og starter umiddelbart
         end = time.time()
     except Exception as e:
+        print("!!!!!!!!!!!ERROR!!!!!!!!!!")
         print(e)
         break
 window.close()
