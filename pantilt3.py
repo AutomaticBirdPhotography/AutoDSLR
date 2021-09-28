@@ -1,5 +1,5 @@
 """
-Versjon: 3.5
+Versjon: 3.6
             .3 - endret hastigheter ved følgning og align
 Dette er HOVEDVERSJONEN av programmet.
 !KJØRES HVER GANG RPI STARTER!
@@ -12,7 +12,7 @@ from vidgear.gears import PiGear
 import socket, imutils, cv2, threading, serial, time, os
 
 import numpy as np
-ser = serial.Serial("/dev/ttyUSB0", 115200)
+ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=0.1)
 
 
 dslr = CamGear(source=0).start()
@@ -37,7 +37,9 @@ PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((HOST, PORT))
 s.listen()
+print("Venter på at kontroller skal koble til")
 conn, addr = s.accept()
+print("Kontroller koblet til")
 
 
 tracker = cv2.TrackerKCF_create()
@@ -75,66 +77,87 @@ def receive():
     global bbox
     global degrees_per_pixel
     while True:
-        buffer = conn.recv(1024)
-        
-        if buffer == b's':
-            break
-        
-        elif buffer.decode()[0] == 't':
-            posList = midFrame
-            track_init = True
-            bbox = eval(buffer.decode()[1:])
-            mouse_in = False
-            to_mouse = False
-            joy = False
-
-        elif buffer == b'a':
-            ser.write("a".encode())
-            track_init = False
-            mouse_in = False
-            to_mouse = False
-            joy = True
-            i = 0
+        try:
+            buffer = conn.recv(32)
+            print(buffer)
             
-        elif buffer == b'h':
-            ser.write("h".encode())
-            track_init = False
-            mouse_in = False
-            to_mouse = False
-            joy = True
-            i = 0
+            if buffer == b's':
+                break
+            
+            elif buffer.decode()[0] == 't':
+                posList = midFrame
+                track_init = True
+                bbox = eval(buffer.decode()[1:])
+                mouse_in = False
+                to_mouse = False
+                joy = False
 
-        elif buffer.decode()[0] == 'j':
-            track_init = False
-            mouse_in = False
-            to_mouse = False
-            joy = True
-            mod_buffer = buffer.decode()[1:]
-            ser.write(mod_buffer.encode())
-            i = 0
+            elif buffer == b'a':
+                ser.write("a".encode())
+                track_init = False
+                mouse_in = False
+                to_mouse = False
+                joy = True
+                i = 0
+                start_time = time.time()
+                while ser.read() != b'a' and time.time()-start_time < 10:
+                    pass
+                buffer = "0,0,0,0".encode()
+                
+            elif buffer == b'h':
+                ser.write("h".encode())
+                track_init = False
+                mouse_in = False
+                to_mouse = False
+                joy = True
+                i = 0
+                start_time = time.time()
+                while ser.read() != b'h' and time.time()-start_time < 10:
+                    pass
+                buffer = "0,0,0,0".encode()
 
-        elif buffer.decode()[0] == 'm':
-            if joy == False and track_init == False:
-                posList = eval(buffer.decode()[1:])
-                if to_mouse:
-                    degrees_to_mouse(posList)
+            elif buffer.decode()[0] == 'j':
+                track_init = False
+                mouse_in = False
+                to_mouse = False
+                joy = True
+                data_length = int(buffer.decode()[1:3])#verdi på hvor lang stingen er, tall send fra klienten
+                mod_buffer = buffer.decode()[3:]
+                buffer_length = len(mod_buffer) #hvor lang bufferen mottat faktisk er
+                
+                if data_length == buffer_length:
+                    ser.write(mod_buffer.encode())
                 else:
-                    mouse_in = False
+                    ser.write("0,0,0,0".encode())
+                i = 0
 
-        elif buffer.decode()[0] == 'p':
-            posList = midFrame
-            h_angle = float(buffer.decode()[1:])
-            degrees_per_pixel = h_angle/dslrFrame.shape[1]
-            joy = False
-            mouse_in = True
-            to_mouse = True
-            i = 0
-            
-        elif buffer == b'b':
-            ser.write("b".encode())
-            
-        elif buffer == b'f':
-            ser.write("f".encode())
+            elif buffer.decode()[0] == 'm':
+                if joy == False and track_init == False:
+                    posList = eval(buffer.decode()[1:])
+                    if to_mouse:
+                        degrees_to_mouse(posList)
+                    else:
+                        mouse_in = False
+
+            elif buffer.decode()[0] == 'p':
+                posList = midFrame
+                h_angle = float(buffer.decode()[1:])
+                degrees_per_pixel = h_angle/dslrFrame.shape[1]
+                joy = False
+                mouse_in = True
+                to_mouse = True
+                i = 0
+                
+            elif buffer == b'b':
+                ser.write("b".encode())
+                
+            elif buffer == b'f':
+                ser.write("f".encode())
+
+        except Exception as e:
+            print("!!!!!!!!!!ERROR!!!!!!!!!!")
+            print(e)
+            exit()
             
             
 threading._start_new_thread(receive, ())
@@ -150,7 +173,6 @@ def drawBox(img, bbox):
 
     cv2.rectangle(img, (x,y), ((x+w), (y+h)), (0, 255, 0), 3, 1)
     cv2.line(img, centerRect, centerFrame, (255, 0, 0), 4, cv2.LINE_AA)
-    cv2.putText(img, "TRACKING",(75,75),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,255,0),2)
 
 def move(centerRect, centerFrame):
     hDiff = centerFrame[0]-centerRect[0] #centerFrame er 320, 240 vanligvis, går fra 0 ved midt til 320, men endres ved klikk fra server om ny senterposisjon
@@ -159,15 +181,17 @@ def move(centerRect, centerFrame):
     vSpeed = map(vDiff, (dslrFrame.shape[0]), (dslrFrame.shape[0]-dslrFrame.shape[0]*2), 20, -20) #fra 480 til -480
     ser.write("{},{},0,0".format(hSpeed, vSpeed).encode())
     
-old_send = "p0,0"
 def degrees_to_mouse(posList):
-    global old_send
     h_angle_to_mouse = degrees_per_pixel*(posList[0]-midFrame[0]) #0-320=-320 gir negativ verdi- går mot venstre 
     v_angle_to_mouse = degrees_per_pixel*(midFrame[1]-posList[1]) #240-0= 240 gir positiv verdi- går opp
     send = "p"+str(h_angle_to_mouse)+","+str(v_angle_to_mouse)
-    if send != old_send:
+    if not send == "skip":
         ser.write(send.encode())
-    old_send = send
+        start_time = time.time()
+        while ser.read() != b'p' and time.time()-start_time < 10:
+            pass
+        buffer = "0,0,0,0".encode()
+        send = "skip"
 '''
 data = "0,0".encode()
 def send_steps():
@@ -180,44 +204,52 @@ threading._start_new_thread(send_steps, ())
 def grab_frame():
     global i, grab
     while grab:
-        dslrFrame = dslr.read()
-        camFrame = cam.read()
-        if i == 1:
-            dslrFrame_scaled = cv2.resize(dslrFrame, (int(dslrFrame.shape[1]*scale_percent/100), int(dslrFrame.shape[0]*scale_percent/100)), interpolation = cv2.INTER_AREA)
-            success, bbox = tracker.update(dslrFrame_scaled)
-            if success:
-                drawBox(dslrFrame, bbox)
-            else:
-                ser.write("0,0,0,0".encode())
-                buffer = "0,0,0,0".encode()
-                cv2.putText(dslrFrame, "LOST",(75,75),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
-                #i = 0
-                #joy = True
-        camServer.send(camFrame)
-        dslrServer.send(dslrFrame)
-        
+        try:
+            dslrFrame = dslr.read()
+            camFrame = cam.read()
+            if i == 1:
+                dslrFrame_scaled = cv2.resize(dslrFrame, (int(dslrFrame.shape[1]*scale_percent/100), int(dslrFrame.shape[0]*scale_percent/100)), interpolation = cv2.INTER_AREA)
+                success, bbox = tracker.update(dslrFrame_scaled)
+                if success:
+                    drawBox(dslrFrame, bbox)
+                else:
+                    ser.write("0,0,0,0".encode())
+                    buffer = "0,0,0,0".encode()
+                    cv2.putText(dslrFrame, "LOST",(75,75),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
+                    #i = 0
+                    #joy = True
+            camServer.send(camFrame)
+            dslrServer.send(dslrFrame)
+        except Exception as e:
+            print("!!!!!!!!!!ERROR!!!!!!!!!!")
+            print(e)
+            exit()
 
 threading._start_new_thread(grab_frame, ())
     
 while True:
-    if buffer == b's': #må være her for å kunne bryte ut av while løkken
-            ser.write("h".encode())
-            grab = False
-            time.sleep(5)
+    try:
+        if buffer == b's': #må være her for å kunne bryte ut av while løkken
+                ser.write("h".encode())
+                grab = False
+                time.sleep(5)
+                break
+
+
+        if track_init:
+                bbox = (int(bbox[0]*scale_percent/100), int(bbox[1]*scale_percent/100),int(bbox[2]*scale_percent/100),int(bbox[3]*scale_percent/100))
+                print(bbox)
+                dslrFrame_scaled = cv2.resize(dslrFrame, (int(dslrFrame.shape[1]*scale_percent/100), int(dslrFrame.shape[0]*scale_percent/100)), interpolation = cv2.INTER_AREA)
+                
+                tracker = cv2.TrackerCSRT_create()
+                ser.write("0,0,0,0".encode())
+                tracker.init(dslrFrame_scaled, bbox)
+                track_init = False
+                i = 1
+    except Exception as e:
+            print("!!!!!!!!!!ERROR!!!!!!!!!!")
+            print(e)
             break
-
-
-    if track_init:
-            bbox = (int(bbox[0]*scale_percent/100), int(bbox[1]*scale_percent/100),int(bbox[2]*scale_percent/100),int(bbox[3]*scale_percent/100))
-            print(bbox)
-            dslrFrame_scaled = cv2.resize(dslrFrame, (int(dslrFrame.shape[1]*scale_percent/100), int(dslrFrame.shape[0]*scale_percent/100)), interpolation = cv2.INTER_AREA)
-            
-            tracker = cv2.TrackerCSRT_create()
-            ser.write("0,0,0,0".encode())
-            tracker.init(dslrFrame_scaled, bbox)
-            track_init = False
-            i = 1
-
             
 
 ser.write("0,0,0,0".encode())
