@@ -1,6 +1,6 @@
 """
 !DETTE ER HOVEDVERSJONEN AV PROGRAMMET. BRUKES AV REMOTE-SHORTCUT!
-versjon 1.6
+versjon 2.8.1
 """
 
 import PySimpleGUI as sg
@@ -20,8 +20,8 @@ options = {
     "request_timeout": 10,
     "max_retries": 20,
 }
-dslrClient = NetGear("192.168.4.3", 2345, receive_mode=True, pattern = 0, **options)
-camClient = NetGear("192.168.4.3", 1234, receive_mode=True, pattern = 0, **options)
+dslrClient = NetGear("192.168.4.4", 2345, receive_mode=True, pattern = 0, **options)
+camClient = NetGear("192.168.4.4", 1234, receive_mode=True, pattern = 0, **options)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
     s.connect(("192.168.4.1", 65432))
@@ -81,20 +81,22 @@ Old_vSpeed = 0
 Old_PanServo = 0
 Old_TiltServo = 0
 first_value = True
+enable = False
 
 #---------------------GUI-----------------------------------------------------------------
 w, h = sg.Window.get_screen_size()
 sg.theme('Black')
-state_button = sg.Button('Stopp', size=(10, 1), font='Any 14', button_color=('white', 'red'))
+state_button = sg.Button('X', size=(2, 1), font='Any 14', button_color=('white', 'red'))
 track_button = sg.Button('Start følgning', size=(12, 1), font='Helvetica 14', button_color=('black', 'white'))
 point_button = sg.Button('Start klikk', size=(10, 1), font='Helvetica 14', button_color=('black', 'white'))
 joy_button = sg.Button('Stopp joy', size=(10, 1), font='Helvetica 14', button_color=('white', 'blue'))
 align_button = sg.Button('Sentrér', size=(10, 1), font='Helvetica 14')
 home_button = sg.Button('Hjem', size=(10, 1), font='Helvetica 14')
+enable_button = sg.Button('OFF', size=(4,1), font='Helvetica 14', button_color=('white', 'red'))
 layout_column = [[sg.Text(f'Brennvidde: {focal_lenght}mm, {round(h_angle, 2)}', key='tekst', size=(22,1), font='Helvetica 12'), sg.Combo(['50','70','200','500','750'], default_value='500', key='brennvidde', font='Helvetica 14'), sg.Button('OK', font='Helvetica 12', bind_return_key=True)],
                 [sg.Image(filename='', key='web'),
                 sg.Image(filename='', key='dslr'), sg.Graph(canvas_size=(dslrFrame.shape[1], dslrFrame.shape[0]), graph_bottom_left=(0, dslrFrame.shape[0]), graph_top_right=(dslrFrame.shape[1], 0), key="-DSLR-", change_submits=True, background_color='lightblue', drag_submits=True),],
-                [home_button, align_button, track_button, joy_button, point_button, state_button,],
+                [home_button, align_button, track_button, joy_button, point_button, enable_button, state_button],
                 [sg.Text(key='info', size=(60, 1))]]
 
 layout = [[sg.Column(layout_column, justification='center', element_justification='center')]]
@@ -104,12 +106,22 @@ graph = window["-DSLR-"]
 
 
 #-------------Funksjoner----------------------------
+def speed(x):
+    offset = 20 #dødgang på joy
+    if x > offset:
+        return 1.25*x-25
+    elif x < -offset:
+        return 1.25*x+25
+    else:
+        return 0
+        
+
 def update_focal():
     global h_angle
     inn = values['brennvidde']
     h_angle = 2 * math.atan(float(h_sensor) / (2 * int(inn))) * (360 / (2 * math.pi))
-    #print(h_angle)
-    window['tekst']. update("Brennvidde: " + values['brennvidde'] + f"mm, {round(h_angle, 2)}")
+    h_angle = round(h_angle, 2)
+    window['tekst']. update("Brennvidde: " + values['brennvidde'] + f"mm, {h_angle}")
 
 def roi(start_point, end_point):
     global rect_x, rect_y, rect_width, rect_height, bbox
@@ -166,13 +178,20 @@ def update_labels(button):
         track_button.update(button_color=('black', 'white'))
         point_button.update('Stopp klikk')
         point_button.update(button_color=('white', 'blue'))
-    elif button == "stop":
+    elif button == "X":
         joy_button.update('Start joy')
         joy_button.update(button_color=('black', 'white'))
         track_button.update('Start følgning')
         track_button.update(button_color=('black', 'white'))
         point_button.update('Start klikk')
         point_button.update(button_color=('black', 'white'))
+    elif button == "ON":
+        enable_button.update('ON')
+        enable_button.update(button_color=('white', 'green'))
+    elif button == "OFF":
+        enable_button.update('OFF')
+        enable_button.update(button_color=('white', 'red'))
+        
 
 #--------------------Programmet----------------------------------
 while True:
@@ -192,7 +211,7 @@ while True:
         
         if event != old_event or joyInput:  #unngå at to eventer skal være like rett etter hverandre og oppheve seg selv: stopp like etter stopp - stopper og starter umiddelbart
 
-            if event == 'Stopp' or event == sg.WIN_CLOSED or joystick.get_button(8): #back
+            if event == 'X' or event == sg.WIN_CLOSED or joystick.get_button(8): #back
                 break
 
             elif event == 'Sentrér' or joystick.get_button(1): #a
@@ -204,14 +223,22 @@ while True:
                 s.send("h".encode())
                 time.sleep(0.2)
                 joy = True
-            
-            elif event == 'Start følgning' or joystick.get_button(0): #x
+                
+            elif event == 'OFF' or joystick.get_button(0): #x:
+                s.send("b".encode())
+                if enable == False:
+                    update_labels("ON") #oppdaterer seg til å få ON-label
+                elif enable == True:
+                    update_labels("OFF") #oppdaterer seg til å få ON-label
+                time.sleep(0.2)
+                enable = not enable
+                
+            elif event == 'Start følgning':
                 if tracking:
                     tracking = False
                     track_button.update('Start følgning')
                     track_button.update(button_color=('black', 'white'))
                 else:
-                    s.send("t".encode())
                     #select roi
                     info = window["info"]
                     info.update(value="Select ROI")
@@ -244,31 +271,28 @@ while True:
                     tracking = False
                     point = True
                     update_labels("point")
-                    s.send("p".encode())
-                    time.sleep(0.2)
-                    s.send("{}".format(h_angle).encode())
+                    s.send("p{}".format(h_angle).encode())
 
             elif event == 'OK':
                 update_focal()
 
         if joy:
-            vSpeed = joystick.get_axis(3)*-65
-            hSpeed = joystick.get_axis(2)*65
-            if hSpeed < 3 and hSpeed > -3:
-                hSpeed = 0
-            if vSpeed < 3 and vSpeed > -3:
-                vSpeed = 0
+            RAWvSpeed = joystick.get_axis(3)*100  #for å få riktige verdier i speed-funksjonen
+            RAWhSpeed = joystick.get_axis(2)*100
+            vSpeed = (speed(RAWvSpeed)/100)*-65
+            hSpeed = (speed(RAWhSpeed)/100)*65
 
-            PanServo = joystick.get_axis(0)*8
-            TiltServo = joystick.get_axis(1)*-8
+            RAWPanServo = joystick.get_axis(0)*100
+            RAWTiltServo = joystick.get_axis(1)*100
+            PanServo = (speed(RAWPanServo)/100)*8
+            TiltServo = (speed(RAWTiltServo)/100)*-8
+            
             if (hSpeed != Old_hSpeed or vSpeed != Old_vSpeed or PanServo != Old_PanServo or TiltServo != Old_TiltServo):
                 if first_value:
-                    s.send("0,0,0,0".encode())
-                    print("0,0,0,0")
+                    s.send("j0,0,0,0".encode())
                     first_value = False
                 else:
-                    s.send("{:.0f},{:.0f},{:.0f},{:.0f}".format(hSpeed, vSpeed, PanServo, TiltServo).encode())
-                    print("{:.0f},{:.0f},{:.0f},{:.0f}".format(hSpeed, vSpeed, PanServo, TiltServo))
+                    s.send("j{:.0f},{:.0f},{:.0f},{:.0f}".format(hSpeed, vSpeed, PanServo, TiltServo).encode())
                     #time.sleep(0.5)
             Old_hSpeed = hSpeed
             Old_vSpeed = vSpeed
@@ -306,14 +330,12 @@ while True:
                     track_button.update('Start følgning')
                     track_button.update(button_color=('black', 'white'))
                     time.sleep(0.7)
-                    s.send("{}".format(str(bbox)).encode())
+                    s.send("t{}".format(str(bbox)).encode())
                     point = True
                     if prior_rect:
                         graph.delete_figure(prior_rect)
                 elif point:
-                    s.send("m".encode())
-                    time.sleep(0.2)
-                    s.send("{}, {}".format(int(start_point[0]/(dslrScale/100)), int(start_point[1]/(dslrScale/100))).encode())
+                    s.send("m{}, {}".format(int(start_point[0]/(dslrScale/100)), int(start_point[1]/(dslrScale/100))).encode())
                     if prior_rect:
                         graph.delete_figure(prior_rect)
                 if update:
@@ -327,7 +349,6 @@ while True:
         joyInput = False
         old_event = event   #unngå at to eventer skal være like rett etter hverandre og oppheve seg selv: stopp like etter stopp - stopper og starter umiddelbart
         end = time.time()
-        #print(end-start)
     except Exception as e:
         print(e)
         break
