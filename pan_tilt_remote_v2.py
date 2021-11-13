@@ -1,6 +1,6 @@
 """
 !DETTE ER HOVEDVERSJONEN AV PROGRAMMET. BRUKES AV REMOTE-SHORTCUT!
-versjon 2.8.1
+versjon 2.9.1
 """
 
 import PySimpleGUI as sg
@@ -43,8 +43,8 @@ print("Laster...")
 time.sleep(0.5)
 
 #----------------Variabler------------------------------------------------------------------
-dslrScale = 80 #% må samsvare med verdier hos klient
-camScale = 100
+dslrScale = 80
+camScale = 65
 #halverer størrelsen på bildet, graphkordinatene må dobles | bildet ganges med scale/100, kordinatene deles med scale/100
 #dobler størrelsen, halverer kordinatene
 dslrFrameOrig = np.full((480, 640), 255, dtype='uint8') #dslrFrame = dslrClient.recv()
@@ -86,6 +86,7 @@ Old_PanServo = 0
 Old_TiltServo = 0
 first_value = True
 enable = False
+view_dslr_layout = False
 
 #---------------------GUI-----------------------------------------------------------------
 w, h = sg.Window.get_screen_size()
@@ -94,19 +95,22 @@ state_button = sg.Button('X', size=(2, 1), font='Any 14', button_color=('white',
 track_button = sg.Button('Start følgning', size=(12, 1), font='Helvetica 14', button_color=('black', 'white'))
 point_button = sg.Button('Start klikk', size=(10, 1), font='Helvetica 14', button_color=('black', 'white'))
 joy_button = sg.Button('Stopp joy', size=(10, 1), font='Helvetica 14', button_color=('white', 'blue'))
-align_button = sg.Button('Sentrér', size=(10, 1), font='Helvetica 14')
+align_button = sg.Button('+', size=(3, 1), font='Helvetica 14')
 home_button = sg.Button('Hjem', size=(10, 1), font='Helvetica 14')
+focal_button = sg.Button('F', size=(3, 1), font='Helvetica 14')
 enable_button = sg.Button('OFF', size=(4,1), font='Helvetica 14', button_color=('white', 'red'))
-layout_column = [[sg.Text(f'Brennvidde: {focal_lenght}mm, {round(h_angle, 2)}', key='tekst', size=(22,1), font='Helvetica 12'), sg.Combo(['50','70','200','500','750'], default_value='500', key='brennvidde', font='Helvetica 14'), sg.Button('OK', font='Helvetica 12', bind_return_key=True)],
-                [sg.Image(filename='', key='web'),
+layout_column = [[sg.Image(filename='', key='web'),
                 sg.Image(filename='', key='dslr'), sg.Graph(canvas_size=(dslrFrame.shape[1], dslrFrame.shape[0]), graph_bottom_left=(0, dslrFrame.shape[0]), graph_top_right=(dslrFrame.shape[1], 0), key="-DSLR-", change_submits=True, background_color='lightblue', drag_submits=True),],
-                [home_button, align_button, track_button, joy_button, point_button, enable_button, state_button],
-                [sg.Text(key='info', size=(60, 1))]]
+                [focal_button, home_button, align_button, track_button, joy_button, point_button, enable_button, state_button]]
+layout_dslr = [[sg.Image(filename='', key='dslr_full'), sg.Button('Ut', size=(6,2), font='Helvetica 15', button_color=('white', 'red'))]]
 
-layout = [[sg.Column(layout_column, justification='center', element_justification='center')]]
+layout_focal_input = [[sg.Text(size=(1,12))],[sg.Text(f'Brennvidde: {focal_lenght}mm, {round(h_angle, 2)}', key='tekst', size=(22,1), font='Helvetica 12'), sg.Combo(['50','70','200','500','750'], default_value='500', key='brennvidde', font='Helvetica 14'), sg.Button('OK', font='Helvetica 12', bind_return_key=True)]]
 
-window = sg.Window('En', layout, location=(0, 0), no_titlebar=True, size=(w, h)).Finalize()#sg.Window('En', layout, no_titlebar = True, keep_on_top = True, location=(0, 0), size=(w, h)).Finalize()
+layout = [[sg.Column(layout_column, justification='center', element_justification='center', key='BASE'), sg.Column(layout_dslr, justification='center', element_justification='center', key='FULL_DSLR', visible=False), sg.Column(layout_focal_input, justification='center', element_justification='center', key='FOCAL_INPUT', visible=False)]]
+
+window = sg.Window('En', layout, no_titlebar=True, location=(0, 0), size=(w, h)).Finalize()#sg.Window('En', layout, no_titlebar = True, keep_on_top = True, location=(0, 0), size=(w, h)).Finalize()
 graph = window["-DSLR-"]
+window.TKroot["cursor"] = "none"
 
 
 #-------------Funksjoner----------------------------
@@ -146,16 +150,19 @@ def roi(start_point, end_point):
     bbox = (int(rect_x/(dslrScale/100)), int(rect_y/(dslrScale/100)), int(rect_width/(dslrScale/100)), int(rect_height/(dslrScale/100)))
 
 def encode_video():
-    global dslrBytes, camBytes
+    global dslrBytes, camBytes, view_dslr_layout
     while encode:
         try:
             dslrFrameOrig = dslrClient.recv()
-            dslrFrame = cv2.resize(dslrFrameOrig, (int(dslrFrameOrig.shape[1]*(dslrScale/100)), int(dslrFrameOrig.shape[0]*(dslrScale/100))), interpolation = cv2.INTER_AREA)
-            cv2.rectangle(dslrFrame, (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (255,0,0), 7)
+            if view_dslr_layout:
+                dslrBytes = cv2.imencode('.ppm', dslrFrameOrig)[1].tobytes()
+            else:
+                dslrFrame = cv2.resize(dslrFrameOrig, (int(dslrFrameOrig.shape[1]*(dslrScale/100)), int(dslrFrameOrig.shape[0]*(dslrScale/100))), interpolation = cv2.INTER_AREA)
+                cv2.rectangle(dslrFrame, (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (255,0,0), 7)
+                dslrBytes = cv2.imencode('.ppm', dslrFrame)[1].tobytes()
             camFrameOrig = camClient.recv()
             camFrame = cv2.resize(camFrameOrig, (int(camFrameOrig.shape[1]*((camScale)/100)), int(camFrameOrig.shape[0]*(camScale/100))), interpolation = cv2.INTER_AREA)
             cv2.rectangle(camFrame, (int(camFrame.shape[1]/2), int(camFrame.shape[0]/2)), (int(camFrame.shape[1]/2), int(camFrame.shape[0]/2)), (255,0,0), 7)
-            dslrBytes = cv2.imencode('.ppm', dslrFrame)[1].tobytes()
             camBytes = cv2.imencode('.ppm', camFrame)[1].tobytes()
         except Exception as e:
             print("!!!!!!!!!!!ERROR!!!!!!!!!!")
@@ -205,26 +212,34 @@ def update_labels(button):
 #--------------------Programmet----------------------------------
 while True:
     try:
-        start = time.time()
+
         for event in pygame.event.get():
             if event.type == pygame.JOYBUTTONDOWN:
                 joyInput = True
 
         event, values = window.read(timeout=0)
-        if a_id:
-            graph.delete_figure(a_id)    #slett forige bilde
-        a_id = graph.draw_image(data=dslrBytes, location=(0,0))  #lag nytt bilde
-        graph.TKCanvas.tag_lower(a_id)   #setter bildet bakerst, tegninger kommer over
+        if not view_dslr_layout:
+            if a_id:
+                graph.delete_figure(a_id)    #slett forige bilde
+            a_id = graph.draw_image(data=dslrBytes, location=(0,0))  #lag nytt bilde
+            graph.TKCanvas.tag_lower(a_id)   #setter bildet bakerst, tegninger kommer over
 
+        if view_dslr_layout:
+            window['dslr_full'].update(data=dslrBytes)
+            
         window['web'].update(data=camBytes)
         
         if event != old_event or joyInput:  #unngå at to eventer skal være like rett etter hverandre og oppheve seg selv: stopp like etter stopp - stopper og starter umiddelbart
 
-            if event == 'X' or event == sg.WIN_CLOSED or joystick.get_button(8): #back
+            if event == 'X' or event == sg.WIN_CLOSED or (joystick.get_button(8) and not view_dslr_layout): #back
                 print("Program stoppet av bruker")
                 break
-
-            elif event == 'Sentrér' or joystick.get_button(1): #a
+            
+            elif event == 'F':
+                window['BASE'].update(visible=False)
+                window['FOCAL_INPUT'].update(visible=True)
+                
+            elif event == '+' or joystick.get_button(1): #a
                 s.send("a".encode())
                 time.sleep(0.2)
                 joy = True
@@ -250,9 +265,6 @@ while True:
                     track_button.update(button_color=('black', 'white'))
                 else:
                     #select roi
-                    info = window["info"]
-                    info.update(value="Select ROI")
-
                     tracking = True
                     joy = False
                     point = False
@@ -284,6 +296,13 @@ while True:
 
             elif event == 'OK':
                 update_focal()
+                window['BASE'].update(visible=True)
+                window['FOCAL_INPUT'].update(visible=False)
+                
+            elif event == 'Ut' or (joystick.get_button(8) and view_dslr_layout):
+                window['BASE'].update(visible=True)
+                window['FULL_DSLR'].update(visible=False)
+                view_dslr_layout=False
 
         if joy:
             RAWvSpeed = joystick.get_axis(3)*100  #for å få riktige verdier i speed-funksjonen
@@ -303,7 +322,6 @@ while True:
                 else:
                     data_string = "{:.0f},{:.0f},{:.0f},{:.0f}".format(hSpeed, vSpeed, PanServo, TiltServo)
                     data_length = len(data_string)
-                    print(data_length)
                     if data_length >= 10:
                         data_string = "j{}".format(data_length) + data_string
                     else:
@@ -322,7 +340,6 @@ while True:
                 if not point:
                     if not dragging:
                         start_point = (x, y)
-                        info = window["info"]
                         dragging = True
                     else:
                         if not x == start_point[0] and not y == start_point[1]:
@@ -338,6 +355,7 @@ while True:
                     graph.delete_figure(prior_rect)
                 if None not in (start_point, end_point):
                     prior_rect = graph.draw_rectangle(start_point, end_point, line_color='red', line_width=5)
+            
 
         elif event.endswith('+UP'):
             if down == True:
@@ -355,9 +373,10 @@ while True:
                     if prior_rect:
                         graph.delete_figure(prior_rect)
                     time.sleep(0.7)
-                if update:
-                    info = window["info"]
-                    info.update(value=f"x: {bbox[0]}, y: {bbox[1]} width: {bbox[2]} height: {bbox[3]}")
+                else:
+                    window['BASE'].update(visible=False)
+                    window['FULL_DSLR'].update(visible=True)
+                    view_dslr_layout=True
             end_point = None #for å unngå at forrige bbox vises i millisekunder v/ ny
             down = False
             dragging = False
@@ -365,7 +384,6 @@ while True:
 
         joyInput = False
         old_event = event   #unngå at to eventer skal være like rett etter hverandre og oppheve seg selv: stopp like etter stopp - stopper og starter umiddelbart
-        end = time.time()
     except Exception as e:
         print("!!!!!!!!!!!ERROR!!!!!!!!!!")
         print(e)
