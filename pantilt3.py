@@ -1,9 +1,16 @@
 """
-Versjon: 3.6.1
+Versjon: 3.7.1
             .3 - endret hastigheter ved følgning og align
+          .7 - med LED
 Dette er HOVEDVERSJONEN av programmet.
 !KJØRES HVER GANG RPI STARTER!
 !USIKRE ENDRINGER Må IKKE GJØRES!
+
+Venter på kontroller:           fast blått
+Når kontroller er koblet til:   fast grønt frem til første kommando sendes
+Skrus kontrollert av:           fast rødt
+Error:                          blinkende gult
+
 """
 
 from vidgear.gears import NetGear
@@ -16,9 +23,6 @@ import socket, imutils, cv2, threading, serial, time, os
 RedLed = LED(18)
 BlueLed = LED(19)
 GreenLed = LED(20)
-
-#RedLed.on()
-#RedLed.off()
 
 ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=0.1)
 
@@ -45,8 +49,12 @@ PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((HOST, PORT))
 s.listen()
+BlueLed.on()
 print("Venter på at kontroller skal koble til")
 conn, addr = s.accept()
+BlueLed.off()
+GreenLed.on()
+GREEN = True
 print("Kontroller koblet til")
 
 
@@ -71,6 +79,19 @@ h_angle = 2.6924060829966665
 degrees_per_pixel = h_angle/dslrFrame.shape[1] #horisontale grader per pikselbredde på dslrFrame
 
 scale_percent = 60 #prosent størrelse på tracker-videoen
+
+def error_blink():
+    for i in range(10):
+        t_now = time.time()
+        GreenLed.on()
+        RedLed.on()
+        while time.time()-1 < t_now:
+            pass
+        GreenLed.off()
+        RedLed.off()
+        while time.time()-0.2 < t_now+1:
+            pass
+
 
 def receive():
     global buffer
@@ -135,6 +156,8 @@ def receive():
                 
                 if data_length == buffer_length:
                     ser.write(mod_buffer.encode())
+                    if GREEN:
+                        GreenLed.off()
                 else:
                     ser.write("0,0,0,0".encode())
                 i = 0
@@ -165,6 +188,7 @@ def receive():
         except Exception as e:
             print("!!!!!!!!!!ERROR!!!!!!!!!!")
             print(e)
+            error_blink()
             exit()
             
             
@@ -231,6 +255,7 @@ def grab_frame():
         except Exception as e:
             print("!!!!!!!!!!ERROR!!!!!!!!!!")
             print(e)
+            error_blink()
             exit()
 
 threading._start_new_thread(grab_frame, ())
@@ -257,9 +282,10 @@ while True:
     except Exception as e:
             print("!!!!!!!!!!ERROR!!!!!!!!!!")
             print(e)
+            error_blink()
             break
             
-
+RedLed.on()
 ser.write("0,0,0,0".encode())
 grab = False
 dslr.stop()
@@ -269,4 +295,5 @@ camServer.close()
 s.close()
 ser.close()
 #time.sleep(10)
+RedLed.off()
 #os.system("sudo shutdown -h now") #skrur av rpi ved stoppkomando/break
