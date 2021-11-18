@@ -1,5 +1,5 @@
 """
-Versjon: 3.6
+Versjon: 3.6.1
             .3 - endret hastigheter ved følgning og align
 Dette er HOVEDVERSJONEN av programmet.
 !KJØRES HVER GANG RPI STARTER!
@@ -9,9 +9,17 @@ Dette er HOVEDVERSJONEN av programmet.
 from vidgear.gears import NetGear
 from vidgear.gears import CamGear
 from vidgear.gears import PiGear
+from gpiozero import LED
+import numpy as np
 import socket, imutils, cv2, threading, serial, time, os
 
-import numpy as np
+RedLed = LED(18)
+BlueLed = LED(19)
+GreenLed = LED(20)
+
+#RedLed.on()
+#RedLed.off()
+
 ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=0.1)
 
 
