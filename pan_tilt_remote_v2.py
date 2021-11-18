@@ -1,6 +1,6 @@
 """
 !DETTE ER HOVEDVERSJONEN AV PROGRAMMET. BRUKES AV REMOTE-SHORTCUT!
-versjon 2.9.1
+versjon 2.9.2
 """
 
 import PySimpleGUI as sg
@@ -154,16 +154,17 @@ def encode_video():
     while encode:
         try:
             dslrFrameOrig = dslrClient.recv()
-            if view_dslr_layout:
-                dslrBytes = cv2.imencode('.ppm', dslrFrameOrig)[1].tobytes()
-            else:
-                dslrFrame = cv2.resize(dslrFrameOrig, (int(dslrFrameOrig.shape[1]*(dslrScale/100)), int(dslrFrameOrig.shape[0]*(dslrScale/100))), interpolation = cv2.INTER_AREA)
-                cv2.rectangle(dslrFrame, (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (255,0,0), 7)
-                dslrBytes = cv2.imencode('.ppm', dslrFrame)[1].tobytes()
-            camFrameOrig = camClient.recv()
-            camFrame = cv2.resize(camFrameOrig, (int(camFrameOrig.shape[1]*((camScale)/100)), int(camFrameOrig.shape[0]*(camScale/100))), interpolation = cv2.INTER_AREA)
-            cv2.rectangle(camFrame, (int(camFrame.shape[1]/2), int(camFrame.shape[0]/2)), (int(camFrame.shape[1]/2), int(camFrame.shape[0]/2)), (255,0,0), 7)
-            camBytes = cv2.imencode('.ppm', camFrame)[1].tobytes()
+            if dslrFrameOrig:    # kan hende det må være len(dslrFrameOrig) > 0
+                if view_dslr_layout:
+                    dslrBytes = cv2.imencode('.ppm', dslrFrameOrig)[1].tobytes()
+                else:
+                    dslrFrame = cv2.resize(dslrFrameOrig, (int(dslrFrameOrig.shape[1]*(dslrScale/100)), int(dslrFrameOrig.shape[0]*(dslrScale/100))), interpolation = cv2.INTER_AREA)
+                    cv2.rectangle(dslrFrame, (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (255,0,0), 7)
+                    dslrBytes = cv2.imencode('.ppm', dslrFrame)[1].tobytes()
+                camFrameOrig = camClient.recv()
+                camFrame = cv2.resize(camFrameOrig, (int(camFrameOrig.shape[1]*((camScale)/100)), int(camFrameOrig.shape[0]*(camScale/100))), interpolation = cv2.INTER_AREA)
+                cv2.rectangle(camFrame, (int(camFrame.shape[1]/2), int(camFrame.shape[0]/2)), (int(camFrame.shape[1]/2), int(camFrame.shape[0]/2)), (255,0,0), 7)
+                camBytes = cv2.imencode('.ppm', camFrame)[1].tobytes()
         except Exception as e:
             print("!!!!!!!!!!!ERROR!!!!!!!!!!")
             print(e)
