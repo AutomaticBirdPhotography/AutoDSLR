@@ -16,13 +16,20 @@ Error:                          blinkende gult
 from vidgear.gears import NetGear
 from vidgear.gears import CamGear
 from vidgear.gears import PiGear
-from gpiozero import LED
+import RPi.GPIO as GPIO
 import numpy as np
 import socket, imutils, cv2, threading, serial, time, os
 
-RedLed = LED(13)
-BlueLed = LED(19)
-GreenLed = LED(12)
+GPIO.setmode(GPIO.BCM)  #kan ikke være BOAR; fungerer ikke
+GPIO.setup(13,GPIO.OUT)
+GPIO.setup(19,GPIO.OUT)
+GPIO.setup(12,GPIO.OUT)
+RedLed = GPIO.PWM(13, 1000)
+BlueLed = GPIO.PWM(19, 1000)
+GreenLed = GPIO.PWM(12, 1000)
+RedLed.start(0)
+BlueLed.start(0)
+GreenLed.start(0)
 
 ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=0.1)
 
@@ -49,11 +56,11 @@ PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.bind((HOST, PORT))
 s.listen()
-BlueLed.on()
+BlueLed.ChangeDutyCycle(100)
 print("Venter på at kontroller skal koble til")
 conn, addr = s.accept()
-BlueLed.off()
-GreenLed.on()
+BlueLed.ChangeDutyCycle(0)
+GreenLed.ChangeDutyCycle(100)
 GREEN = True
 print("Kontroller koblet til")
 
@@ -83,12 +90,12 @@ scale_percent = 60 #prosent størrelse på tracker-videoen
 def error_blink():
     for i in range(10):
         t_now = time.time()
-        GreenLed.on()
-        RedLed.on()
+        GreenLed.ChangeDutyCycle(30)            #grønnt lys er mye sterkere enn rødt
+        RedLed.ChangeDutyCycle(100)
         while time.time()-1 < t_now:
             pass
-        GreenLed.off()
-        RedLed.off()
+        GreenLed.ChangeDutyCycle(0)
+        RedLed.ChangeDutyCycle(0)
         while time.time()-0.2 < t_now+1:
             pass
 
@@ -157,7 +164,7 @@ def receive():
                 if data_length == buffer_length:
                     ser.write(mod_buffer.encode())
                     if GREEN:
-                        GreenLed.off()
+                        GreenLed.ChangeDutyCycle(0)
                 else:
                     ser.write("0,0,0,0".encode())
                 i = 0
@@ -225,7 +232,6 @@ def degrees_to_mouse(posList):
         buffer = "0,0,0,0".encode()
         send = "skip"
 '''
-data = "0,0".encode()
 def send_steps():
     global data
     while True:
@@ -285,7 +291,7 @@ while True:
             error_blink()
             break
             
-RedLed.on()
+RedLed.ChangeDutyCycle(100)
 ser.write("0,0,0,0".encode())
 grab = False
 dslr.stop()
@@ -295,5 +301,9 @@ camServer.close()
 s.close()
 ser.close()
 #time.sleep(10)
-RedLed.off()
+RedLed.ChangeDutyCycle(0)
+RedLed.stop()
+BlueLed.stop()
+GreenLed.stop()
+GPIO.cleanup()
 #os.system("sudo shutdown -h now") #skrur av rpi ved stoppkomando/break
