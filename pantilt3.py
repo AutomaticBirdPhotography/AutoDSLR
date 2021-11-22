@@ -1,7 +1,6 @@
 """
-Versjon: 3.7.1
-            .3 - endret hastigheter ved følgning og align
-          .7 - med LED
+Versjon: 4.0.0
+         4. - med LED
 Dette er HOVEDVERSJONEN av programmet.
 !KJØRES HVER GANG RPI STARTER!
 !USIKRE ENDRINGER Må IKKE GJØRES!
