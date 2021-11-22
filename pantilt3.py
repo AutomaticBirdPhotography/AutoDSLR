@@ -20,9 +20,9 @@ from gpiozero import LED
 import numpy as np
 import socket, imutils, cv2, threading, serial, time, os
 
-RedLed = LED(18)
+RedLed = LED(13)
 BlueLed = LED(19)
-GreenLed = LED(20)
+GreenLed = LED(12)
 
 ser = serial.Serial("/dev/ttyUSB0", 115200, timeout=0.1)
 
