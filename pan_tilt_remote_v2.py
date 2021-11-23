@@ -155,7 +155,7 @@ def encode_video():
     while encode:
         try:
             dslrFrameOrig = dslrClient.recv()
-            if dslrFrameOrig:
+            if len(dslrFrameOrig) > 0:
                 if view_dslr_layout:
                     dslrFrame = cv2.resize(dslrFrameOrig, (int(dslrFrameOrig.shape[1]*(dslrScaleFull/100)), int(dslrFrameOrig.shape[0]*(dslrScaleFull/100))), interpolation = cv2.INTER_AREA)
                     dslrBytes = cv2.imencode('.ppm', dslrFrame)[1].tobytes()
