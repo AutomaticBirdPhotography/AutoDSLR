@@ -1,6 +1,6 @@
 """
 !DETTE ER HOVEDVERSJONEN AV PROGRAMMET. BRUKES AV REMOTE-SHORTCUT!
-versjon 2.9.2
+versjon 2.9.3
 """
 
 import PySimpleGUI as sg
@@ -43,8 +43,9 @@ print("Laster...")
 time.sleep(0.5)
 
 #----------------Variabler------------------------------------------------------------------
-dslrScale = 80
-camScale = 65
+dslrScale = 95
+dslrScaleFull = 130
+camScale = 145
 #halverer størrelsen på bildet, graphkordinatene må dobles | bildet ganges med scale/100, kordinatene deles med scale/100
 #dobler størrelsen, halverer kordinatene
 dslrFrameOrig = np.full((480, 640), 255, dtype='uint8') #dslrFrame = dslrClient.recv()
@@ -91,24 +92,24 @@ view_dslr_layout = False
 #---------------------GUI-----------------------------------------------------------------
 w, h = sg.Window.get_screen_size()
 sg.theme('Black')
-state_button = sg.Button('X', size=(2, 1), font='Any 14', button_color=('white', 'red'))
-track_button = sg.Button('Start følgning', size=(12, 1), font='Helvetica 14', button_color=('black', 'white'))
-point_button = sg.Button('Start klikk', size=(10, 1), font='Helvetica 14', button_color=('black', 'white'))
-joy_button = sg.Button('Stopp joy', size=(10, 1), font='Helvetica 14', button_color=('white', 'blue'))
-align_button = sg.Button('+', size=(3, 1), font='Helvetica 14')
-home_button = sg.Button('Hjem', size=(10, 1), font='Helvetica 14')
-focal_button = sg.Button('F', size=(3, 1), font='Helvetica 14')
-enable_button = sg.Button('OFF', size=(4,1), font='Helvetica 14', button_color=('white', 'red'))
+state_button = sg.Button('X', size=(2, 3), font='Any 15', button_color=('white', 'red'))
+track_button = sg.Button('Start følgning', size=(12, 3), font='Helvetica 15', button_color=('black', 'white'))
+point_button = sg.Button('Start klikk', size=(10, 3), font='Helvetica 15', button_color=('black', 'white'))
+joy_button = sg.Button('Stopp joy', size=(10, 3), font='Helvetica 15', button_color=('white', 'blue'))
+align_button = sg.Button('+', size=(3, 3), font='Helvetica 15')
+home_button = sg.Button('Hjem', size=(10, 3), font='Helvetica 15')
+focal_button = sg.Button('F', size=(3, 3), font='Helvetica 15')
+enable_button = sg.Button('OFF', size=(4, 3), font='Helvetica 15', button_color=('white', 'red'))
 layout_column = [[sg.Image(filename='', key='web'),
                 sg.Image(filename='', key='dslr'), sg.Graph(canvas_size=(dslrFrame.shape[1], dslrFrame.shape[0]), graph_bottom_left=(0, dslrFrame.shape[0]), graph_top_right=(dslrFrame.shape[1], 0), key="-DSLR-", change_submits=True, background_color='lightblue', drag_submits=True),],
                 [focal_button, home_button, align_button, track_button, joy_button, point_button, enable_button, state_button]]
 layout_dslr = [[sg.Image(filename='', key='dslr_full'), sg.Button('Ut', size=(6,2), font='Helvetica 15', button_color=('white', 'red'))]]
 
-layout_focal_input = [[sg.Text(size=(1,12))],[sg.Text(f'Brennvidde: {focal_lenght}mm, {round(h_angle, 2)}', key='tekst', size=(22,1), font='Helvetica 12'), sg.Combo(['50','70','200','500','750'], default_value='500', key='brennvidde', font='Helvetica 14'), sg.Button('OK', font='Helvetica 12', bind_return_key=True)]]
+layout_focal_input = [[sg.Text(size=(1,20))],[sg.Text(f'Brennvidde: {focal_lenght}mm, {round(h_angle, 2)}', key='tekst', size=(22,1), font='Helvetica 28'), sg.Combo(['50','70','200','500','750'], default_value='500', key='brennvidde', font='Helvetica 35'), sg.Button('OK', font='Helvetica 28', bind_return_key=True)]]
 
 layout = [[sg.Column(layout_column, justification='center', element_justification='center', key='BASE'), sg.Column(layout_dslr, justification='center', element_justification='center', key='FULL_DSLR', visible=False), sg.Column(layout_focal_input, justification='center', element_justification='center', key='FOCAL_INPUT', visible=False)]]
 
-window = sg.Window('En', layout, no_titlebar=True, location=(0, 0), size=(w, h)).Finalize()#sg.Window('En', layout, no_titlebar = True, keep_on_top = True, location=(0, 0), size=(w, h)).Finalize()
+window = sg.Window('En', layout, no_titlebar = True, location=(0, 0), size=(w, h)).Finalize()#sg.Window('En', layout, no_titlebar = True, keep_on_top = True, location=(0, 0), size=(w, h)).Finalize()
 graph = window["-DSLR-"]
 window.TKroot["cursor"] = "none"
 
@@ -154,9 +155,10 @@ def encode_video():
     while encode:
         try:
             dslrFrameOrig = dslrClient.recv()
-            if dslrFrameOrig:    # kan hende det må være len(dslrFrameOrig) > 0
+            if dslrFrameOrig:
                 if view_dslr_layout:
-                    dslrBytes = cv2.imencode('.ppm', dslrFrameOrig)[1].tobytes()
+                    dslrFrame = cv2.resize(dslrFrameOrig, (int(dslrFrameOrig.shape[1]*(dslrScaleFull/100)), int(dslrFrameOrig.shape[0]*(dslrScaleFull/100))), interpolation = cv2.INTER_AREA)
+                    dslrBytes = cv2.imencode('.ppm', dslrFrame)[1].tobytes()
                 else:
                     dslrFrame = cv2.resize(dslrFrameOrig, (int(dslrFrameOrig.shape[1]*(dslrScale/100)), int(dslrFrameOrig.shape[0]*(dslrScale/100))), interpolation = cv2.INTER_AREA)
                     cv2.rectangle(dslrFrame, (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)), (255,0,0), 7)
