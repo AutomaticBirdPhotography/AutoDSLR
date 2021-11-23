@@ -1,5 +1,5 @@
 """
-Versjon: 4.0.0
+Versjon: 4.0.1
          4. - med LED
 Dette er HOVEDVERSJONEN av programmet.
 !KJØRES HVER GANG RPI STARTER!
@@ -19,7 +19,7 @@ import RPi.GPIO as GPIO
 import numpy as np
 import socket, imutils, cv2, threading, serial, time, os
 
-GPIO.setmode(GPIO.BCM)  #kan ikke være BOAR; fungerer ikke
+GPIO.setmode(GPIO.BCM)  #kan ikke være BOARD; fungerer ikke
 GPIO.setup(13,GPIO.OUT)
 GPIO.setup(19,GPIO.OUT)
 GPIO.setup(12,GPIO.OUT)
