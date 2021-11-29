@@ -1,7 +1,7 @@
 /*
       Author: Robert
 
-      Version: 1.14.10
+      Version: 1.15.00
       Notes:
       Versjon 11 - Totalt endret hvordan stativet kjører; positiv y verdi kjører opp, positiv x verdi kjører høyre:
               0,10
@@ -26,6 +26,7 @@
                 13 - smoothing ved v- og hSpeed
                 14 - servoer går til hjem rolig
                   .1 - med sending av steps
+                15 - total endret hvordan enablepins fungerer, dette for å unngå "fantomtelling" av steps
 
 
       Python: pantilt.py -på stativet
@@ -49,6 +50,7 @@ int period = 100; //oppdateringsfrekvensen på servoen
 
 const int vertikalDirPin = 7;
 const int vertikalStepPin = 6;
+const int enablePin = 2;
 String vIn = "0";
 String OvIn = "0";
 int vSpeed = 0;
@@ -60,7 +62,6 @@ AccelStepper vertikal(motorInterfaceType, vertikalStepPin, vertikalDirPin);
 
 const int horisontalDirPin = 8;
 const int horisontalStepPin = 9;
-const int enablePin = 2;
 String hIn = "0";
 String OhIn = "0";
 int hSpeed = 0;
@@ -92,7 +93,6 @@ unsigned long potVerdi = 0;
 
 void setup() {
   pinMode(pot, INPUT);
-  pinMode(enablePin, OUTPUT);
 
   digitalWrite(fokusEnablePin, HIGH);
 
@@ -106,9 +106,13 @@ void setup() {
   vertikal.setMaxSpeed(200);
   vertikal.setCurrentPosition(0);
   vertikal.setAcceleration(5000);
+  vertikal.setEnablePin(enablePin);
+  vertikal.setPinsInverted(false, false, true);   //enable når pinnen er LOW
   horisontal.setMaxSpeed(200);
   horisontal.setAcceleration(5000);
   horisontal.setCurrentPosition(0);
+  horisontal.setEnablePin(enablePin);
+  horisontal.setPinsInverted(false, false, true);
   //fokus.setMaxSpeed(100);
   //fokus.setAcceleration(300);
   //fokus.setCurrentPosition(0);
@@ -116,7 +120,7 @@ void setup() {
   Serial.setTimeout(15);
 
   //skrur seg på, så kjører til hjem
-  digitalWrite(enablePin, LOW);
+  vertikal.enableOutputs();     //vertikal og horisontal har samme enablepin; så ubetydelig hvem som er valgt
   for (int i = 0; i < 500; i++) {
     potVerdi += analogRead(pot);
   }
@@ -127,7 +131,7 @@ void setup() {
   vertikal.runToPosition();
   vertikal.setCurrentPosition(0);
   vertikal.setSpeed(200);
-  digitalWrite(enablePin, HIGH);
+  vertikal.disableOutputs();
   // motorene skal ikke være på i starten
 
 }
@@ -216,7 +220,7 @@ void loop() {
 
 
 
-  if (innkommende[0] == 'h') {
+  if (innkommende[0] == 'h' && enable) { //skal ikke bli sann om motorene ikke er på
     if (i == 1) {
       int x = panServo.read();
       if (x < 90 + pan_offset) {
@@ -265,7 +269,7 @@ void loop() {
     Serial.println("h");
     timeNow = millis();
   }
-  else if (innkommende[0] == 'a') {
+  else if (innkommende[0] == 'a' && enable) {
     if (n == 1) {
       //nema 17 : 200 steps pr rev. *16(microstepping) *1,8(36/20(tannhjul))=5760 -> 1deg = 16steps (5760/360)
       float horisontalAlignPos = (OldPosPan - (90 + pan_offset)) * 15; //kjører litt for langt
@@ -302,10 +306,10 @@ void loop() {
   else if (innkommende[0] == 'b') {
     enable = !enable;
     if (enable) {
-      digitalWrite(enablePin, LOW);
+      vertikal.enableOutputs();
     }
     if (enable == false) {
-      digitalWrite(enablePin, HIGH);
+      vertikal.disableOutputs();
     }
     innkommende = "0,0,0,0";
   }
@@ -319,7 +323,7 @@ void loop() {
     }
 
   }
-  else if (innkommende[0] == 'p') {
+  else if (innkommende[0] == 'p' && enable) {
     innkommende.remove(0, 1); //fjerner første bokstav, som er p
     int komma = innkommende.indexOf(',');
     String hGrader = innkommende.substring(0, komma);
@@ -352,34 +356,36 @@ void loop() {
     timeNow = millis();
   }
   else {
-    vSpeedSmooth = (vSpeed * 0.005) + (vSpeedPrev * 0.995);
-    vSpeedPrev = vSpeedSmooth;
+    if (enable) {
+      vSpeedSmooth = (vSpeed * 0.005) + (vSpeedPrev * 0.995);
+      vSpeedPrev = vSpeedSmooth;
 
-    //Serial.println(vertikal.currentPosition());
-    if (vertikal.currentPosition() > maxUp) {
-      if (vSpeed < 0) {
+      //Serial.println(vertikal.currentPosition());
+      if (vertikal.currentPosition() > maxUp) {
+        if (vSpeed < 0) {
+          vertikal.setSpeed(vSpeedSmooth);
+          vertikal.runSpeed();
+        }
+      }
+      else if (vertikal.currentPosition() < maxDown) {
+        if (vSpeed > 0) {
+          vertikal.setSpeed(vSpeedSmooth);
+          vertikal.runSpeed();
+        }
+      }
+      else {
         vertikal.setSpeed(vSpeedSmooth);
         vertikal.runSpeed();
       }
+      hSpeedSmooth = (hSpeed * 0.005) + (hSpeedPrev * 0.995);
+      hSpeedPrev = hSpeedSmooth;
+      horisontal.setSpeed(hSpeedSmooth);
+      horisontal.runSpeed();
+      //fokus.setSpeed(fSpeed);
+      //fokus.run();
+      i = 1;
+      n = 1;
     }
-    else if (vertikal.currentPosition() < maxDown) {
-      if (vSpeed > 0) {
-        vertikal.setSpeed(vSpeedSmooth);
-        vertikal.runSpeed();
-      }
-    }
-    else {
-      vertikal.setSpeed(vSpeedSmooth);
-      vertikal.runSpeed();
-    }
-    hSpeedSmooth = (hSpeed * 0.005) + (hSpeedPrev * 0.995);
-    hSpeedPrev = hSpeedSmooth;
-    horisontal.setSpeed(hSpeedSmooth);
-    horisontal.runSpeed();
-    //fokus.setSpeed(fSpeed);
-    //fokus.run();
-    i = 1;
-    n = 1;
   }
   if ((horisontal.currentPosition() != hPosPrev) || (vertikal.currentPosition() != vPosPrev)) {
     Serial.println("c" + (String)horisontal.currentPosition() + "," + (String)vertikal.currentPosition());
