@@ -1,5 +1,5 @@
 """
-Versjon: 4.0.1
+Versjon: 4.0.3
          4. - med LED
 Dette er HOVEDVERSJONEN av programmet.
 !KJØRES HVER GANG RPI STARTER!
@@ -114,7 +114,7 @@ def receive():
     while True:
         try:
             buffer = conn.recv(32)
-            print(buffer)
+            #print(buffer)
             
             if buffer == b's':
                 break
@@ -230,14 +230,18 @@ def degrees_to_mouse(posList):
             pass
         buffer = "0,0,0,0".encode()
         send = "skip"
-'''
+
 def send_steps():
-    global data
-    while True:
-        data = ser.readline()
-        conn.send(data)
+    global grab
+    while grab:
+        data = ser.read_all()
+        if len(data.decode()) > 0:
+            if data.decode()[0] == 'c':
+                if len(data.decode()) <= 10: #c-000,-000
+                    #print(data.decode()[:-1])
+                    conn.send(data)
 threading._start_new_thread(send_steps, ())
-'''
+
 def grab_frame():
     global i, grab
     while grab:
@@ -269,6 +273,7 @@ while True:
     try:
         if buffer == b's': #må være her for å kunne bryte ut av while løkken
                 ser.write("h".encode())
+                time.sleep(3)
                 grab = False
                 time.sleep(5)
                 break
