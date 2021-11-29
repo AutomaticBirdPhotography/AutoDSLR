@@ -1,7 +1,7 @@
 /*
       Author: Robert
 
-      Version: 1.14.02
+      Version: 1.14.10
       Notes:
       Versjon 11 - Totalt endret hvordan stativet kjører; positiv y verdi kjører opp, positiv x verdi kjører høyre:
               0,10
@@ -25,6 +25,7 @@
                   .01 - "b" skendes for å endre enable-pin, "f" for enable fokus
                 13 - smoothing ved v- og hSpeed
                 14 - servoer går til hjem rolig
+                  .1 - med sending av steps
 
 
       Python: pantilt.py -på stativet
@@ -52,7 +53,8 @@ String vIn = "0";
 String OvIn = "0";
 int vSpeed = 0;
 float vSpeedSmooth = 0;
-float vSpeedPrev = 0;
+float vSpeedPrev = 0;   //brukes for smoothing
+int vPosPrev = 0;      //brukes for sending av steps til serial
 #define motorInterfaceType 1
 AccelStepper vertikal(motorInterfaceType, vertikalStepPin, vertikalDirPin);
 
@@ -63,7 +65,8 @@ String hIn = "0";
 String OhIn = "0";
 int hSpeed = 0;
 float hSpeedSmooth = 0;
-float hSpeedPrev = 0;
+float hSpeedPrev = 0;   //brukes for smoothing
+int hPosPrev = 0;      //brukes for sending av steps til serial
 #define motorInterfaceType 1
 AccelStepper horisontal(motorInterfaceType, horisontalStepPin, horisontalDirPin);
 
@@ -166,7 +169,7 @@ void loop() {
       }
       int tiltLimit = 85;
       if (OldPosPan < 75 || OldPosPan > 115) {
-        if (OldPosTilt > tiltLimit) {      //0 Er rett opp, 180 rett ned; lavere verdi, høyere opp
+        if (OldPosTilt > tiltLimit) {      //0 Er rett opp, 180 rett ned; lavere verdi: høyere opp
           tiltServo.write(tiltLimit);
           OldPosTilt = tiltLimit;
         }
@@ -334,9 +337,6 @@ void loop() {
       vSteps = maxDown - vertikal.currentPosition();
     }
     int hSteps = round(fhSteps);
-    Serial.print(vSteps);
-    Serial.print(", ");
-    Serial.println(hSteps);
     vertikal.move(vSteps);
     horisontal.move(hSteps);
     while ((horisontal.distanceToGo() != 0 && vertikal.distanceToGo() != 0) || (horisontal.distanceToGo() != 0 || vertikal.distanceToGo() != 0)) {
@@ -381,5 +381,9 @@ void loop() {
     i = 1;
     n = 1;
   }
-  //Serial.println(horisontal.currentPosition() + "," + vertikal.currentPosition());
+  if ((horisontal.currentPosition() != hPosPrev) || (vertikal.currentPosition() != vPosPrev)) {
+    Serial.println("c" + (String)horisontal.currentPosition() + "," + (String)vertikal.currentPosition());
+    hPosPrev = horisontal.currentPosition();
+    vPosPrev = vertikal.currentPosition();
+  }
 }
