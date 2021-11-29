@@ -1,6 +1,6 @@
 """
 !DETTE ER HOVEDVERSJONEN AV PROGRAMMET. BRUKES AV REMOTE-SHORTCUT!
-versjon 2.9.3
+versjon 2.9.5
 """
 
 import PySimpleGUI as sg
@@ -81,6 +81,8 @@ rect_width = 0
 rect_height = 0
 bbox = (0,0,0,0)
 
+steps = (0,0)
+
 Old_hSpeed = 0
 Old_vSpeed = 0
 Old_PanServo = 0
@@ -105,11 +107,11 @@ layout_column = [[sg.Image(filename='', key='web'),
                 [focal_button, home_button, align_button, track_button, joy_button, point_button, enable_button, state_button]]
 layout_dslr = [[sg.Image(filename='', key='dslr_full'), sg.Button('Ut', size=(6,2), font='Helvetica 15', button_color=('white', 'red'))]]
 
-layout_focal_input = [[sg.Text(size=(1,20))],[sg.Text(f'Brennvidde: {focal_lenght}mm, {round(h_angle, 2)}', key='tekst', size=(22,1), font='Helvetica 28'), sg.Combo(['50','70','200','500','750'], default_value='500', key='brennvidde', font='Helvetica 35'), sg.Button('OK', font='Helvetica 28', bind_return_key=True)]]
+layout_focal_input = [[sg.Text(size=(1,18))],[sg.Text(f'Brennvidde: {focal_lenght}mm, {round(h_angle, 2)}', key='tekst', size=(22,1), font='Helvetica 28'), sg.Combo(['50','70','200','500','750'], default_value='500', key='brennvidde', font='Helvetica 35')], [sg.Button('OK', font='Helvetica 28', bind_return_key=True)]]
 
-layout = [[sg.Column(layout_column, justification='center', element_justification='center', key='BASE'), sg.Column(layout_dslr, justification='center', element_justification='center', key='FULL_DSLR', visible=False), sg.Column(layout_focal_input, justification='center', element_justification='center', key='FOCAL_INPUT', visible=False)]]
+layout = [[sg.Text(justification=('right'), key='battery')], [sg.Column(layout_column, justification='center', element_justification='center', key='BASE'), sg.Column(layout_dslr, justification='center', element_justification='center', key='FULL_DSLR', visible=False), sg.Column(layout_focal_input, justification='center', element_justification='center', key='FOCAL_INPUT', visible=False)]]
 
-window = sg.Window('En', layout, no_titlebar = True, location=(0, 0), size=(w, h)).Finalize()#sg.Window('En', layout, no_titlebar = True, keep_on_top = True, location=(0, 0), size=(w, h)).Finalize()
+window = sg.Window('En', layout, location=(0, 0), size=(w, h)).Finalize()#sg.Window('En', layout, no_titlebar = True, keep_on_top = True, location=(0, 0), size=(w, h)).Finalize()
 graph = window["-DSLR-"]
 window.TKroot["cursor"] = "none"
 
@@ -131,6 +133,23 @@ def update_focal():
     h_angle = 2 * math.atan(float(h_sensor) / (2 * int(inn))) * (360 / (2 * math.pi))
     h_angle = round(h_angle, 2)
     window['tekst']. update("Brennvidde: " + values['brennvidde'] + f"mm, {h_angle}")
+
+def battery():
+    percentage = 10
+    window['battery'].update(f'{percentage}%')
+battery()
+
+def recieve_steps():
+    global steps
+    try:
+        while encode:
+            steps = s.recv(32)
+    
+    except Exception as e:
+        print("!!!!!!!!!!!ERROR!!!!!!!!!!")
+        print(e)
+
+threading._start_new_thread(recieve_steps, ());
 
 def roi(start_point, end_point):
     global rect_x, rect_y, rect_width, rect_height, bbox
@@ -215,7 +234,7 @@ def update_labels(button):
 #--------------------Programmet----------------------------------
 while True:
     try:
-
+        print(steps)
         for event in pygame.event.get():
             if event.type == pygame.JOYBUTTONDOWN:
                 joyInput = True
