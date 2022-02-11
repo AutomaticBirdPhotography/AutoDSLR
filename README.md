@@ -1,6 +1,8 @@
 # AutoDSLR
 Tracking pan-tilt DSLR head
 
+sudo pip install -r requirements.txt
+
 
 Problemer:
 
