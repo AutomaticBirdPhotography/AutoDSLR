@@ -1,6 +1,5 @@
 PySimpleGUI>=4.56.0
 pygame>=2.1.2
-vidgear>=0.2.4
 numpy>=1.22.0
 opencv-contrib-python==4.5.3.56
 RPi.GPIO>=0.7.0
