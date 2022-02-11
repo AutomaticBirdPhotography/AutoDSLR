@@ -3,6 +3,7 @@ Tracking pan-tilt DSLR head
 
 $ sudo pip install -r requirements.txt  
 $ sudo pip install vidgear  
+$ sudo apt-get install libatlas-base-dev libhdf5-dev libhdf5-serial-dev libatlas-base-dev libjasper-dev libqtgui4 libqt4-test  
 
 
 Problemer:
