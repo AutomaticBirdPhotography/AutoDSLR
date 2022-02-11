@@ -1,7 +1,8 @@
 # AutoDSLR
 Tracking pan-tilt DSLR head
 
-$ sudo pip install -r requirements.txt
+$ sudo pip install -r requirements.txt  
+$ sudo pip install vidgear  
 
 
 Problemer:
