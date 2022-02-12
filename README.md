@@ -2,12 +2,13 @@
 Tracking pan-tilt DSLR head
 
 På remote:  
-```sudo pip install -r requirements.txt
-sudo pip install vidgear```
-$ sudo apt-get install libatlas-base-dev libhdf5-dev libhdf5-serial-dev libatlas-base-dev libjasper-dev -y  
-$ cd /usr/share/applications  
-$ sudo cp python3.9.desktop remote.desktop  
-$ sudo nano remote.desktop  
+```
+sudo pip install -r requirements.txt
+sudo pip install vidgear
+sudo apt-get install libatlas-base-dev libhdf5-dev libhdf5-serial-dev libatlas-base-dev libjasper-dev -y
+cd /usr/share/applications
+sudo cp python3.9.desktop remote.desktop
+sudo nano remote.desktop
 [Desktop Entry]
 Encoding=UTF-8
 Type=Application
@@ -17,8 +18,9 @@ Terminal=true
 Exec=/usr/bin/python3.9 /home/pi/Documents/AutoDSLR-main/pan_tilt_remote_v2.py
 StartupNotify=false
 Categories=Other
-$ sudo cp remote.desktop shutdown.desktop  
-$ sudo nano shutdown.desktop  
+
+sudo cp remote.desktop shutdown.desktop
+sudo nano shutdown.desktop
 [Desktop Entry]
 Encoding=UTF-8
 Type=Application
@@ -28,7 +30,7 @@ Terminal=true
 Exec=/usr/bin/python3.9 /home/pi/Documents/AutoDSLR-main/shutdown.py
 StartupNotify=false
 Categories=Other
-
+```
 
 
 Problemer:
