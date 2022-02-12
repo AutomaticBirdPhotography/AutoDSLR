@@ -17,6 +17,17 @@ Terminal=true
 Exec=/usr/bin/python3.9 /home/pi/Documents/AutoDSLR-main/pan_tilt_remote_v2.py
 StartupNotify=false
 Categories=Other
+$ sudo cp remote.desktop shutdown.desktop  
+$ sudo nano shutdown.desktop  
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+Name=Shutdown
+Icon=/home/pi/Documents/AutoDSLR-main/shutdown.png
+Terminal=true
+Exec=/usr/bin/python3.9 /home/pi/Documents/AutoDSLR-main/shutdown.py
+StartupNotify=false
+Categories=Other
 
 
 
