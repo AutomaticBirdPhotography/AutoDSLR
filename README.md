@@ -1,9 +1,9 @@
 # AutoDSLR
 Tracking pan-tilt DSLR head
 
-På remote:
-`sudo pip install -r requirements.txt ` 
-$ sudo pip install vidgear  
+På remote:  
+`sudo pip install -r requirements.txt
+$ sudo pip install vidgear`
 $ sudo apt-get install libatlas-base-dev libhdf5-dev libhdf5-serial-dev libatlas-base-dev libjasper-dev -y  
 $ cd /usr/share/applications  
 $ sudo cp python3.9.desktop remote.desktop  
