@@ -1,5 +1,5 @@
 """
-Versjon: 4.0.3
+Versjon: 4.0.5
          4. - med LED
 Dette er HOVEDVERSJONEN av programmet.
 !KJØRES HVER GANG RPI STARTER!
@@ -53,6 +53,7 @@ HOST = '192.168.4.1'  # Standard loopback interface address (localhost)
 PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((HOST, PORT))
 s.listen()
 BlueLed.ChangeDutyCycle(100)
@@ -78,11 +79,12 @@ p = 0
 buffer = "".encode()
 Old_buffer = "0,0,0,0".encode()
 dslrFrame = dslr.read()
+dslrFrame = cv2.resize(dslrFrame, (int(640*(4/3)), 480), interpolation = cv2.INTER_AREA) #vises ikke riktig originalt. Bildet er 720x480
+dslrFrame = dslrFrame[0:480, 67:67+720]#borders croppes vekk
 midFrame = int(dslrFrame.shape[1]/2), int(dslrFrame.shape[0]/2)
 posList = midFrame
 
-h_angle = 2.6924060829966665
-degrees_per_pixel = h_angle/dslrFrame.shape[1] #horisontale grader per pikselbredde på dslrFrame
+degrees_per_pixel = 0.004300968 #horisontale grader per pikselbredde på dslrFrame
 
 scale_percent = 60 #prosent størrelse på tracker-videoen
 
@@ -98,6 +100,18 @@ def error_blink():
         while time.time()-0.2 < t_now+1:
             pass
 
+def send_steps():
+    while True:
+        data = ser.read_all()
+        print(data)
+        #if len(data.decode()) > 0:
+            
+         #   if data.decode()[0] == 'c':
+          #      if len(data.decode()) <= 10: #c-000,-000
+           #         pass
+                    #conn.send(data)
+    #conn.close()
+#threading._start_new_thread(send_steps, ())
 
 def receive():
     global buffer
@@ -120,6 +134,7 @@ def receive():
                 break
             
             elif buffer.decode()[0] == 't':
+                i = 0
                 posList = midFrame
                 track_init = True
                 bbox = eval(buffer.decode()[1:])
@@ -178,12 +193,15 @@ def receive():
 
             elif buffer.decode()[0] == 'p':
                 posList = midFrame
-                h_angle = float(buffer.decode()[1:])
-                degrees_per_pixel = h_angle/dslrFrame.shape[1]
+                degrees_per_pixel = float(buffer.decode()[1:])
                 joy = False
                 mouse_in = True
                 to_mouse = True
                 i = 0
+                
+            #elif buffer.decode()[0] == 'g':
+                #lat, lng = eval(buffer.decode()[1:])
+                
                 
             elif buffer == b'b':
                 ser.write("b".encode())
@@ -192,10 +210,10 @@ def receive():
                 ser.write("f".encode())
 
         except Exception as e:
-            print("!!!!!!!!!!ERROR!!!!!!!!!!")
+            print("[recieve]!!!!!!!!!!ERROR!!!!!!!!!!")
             print(e)
             error_blink()
-            exit()
+            s.close()
             
             
 threading._start_new_thread(receive, ())
@@ -220,8 +238,8 @@ def move(centerRect, centerFrame):
     ser.write("{},{},0,0".format(hSpeed, vSpeed).encode())
     
 def degrees_to_mouse(posList):
-    h_angle_to_mouse = degrees_per_pixel*(posList[0]-midFrame[0]) #0-320=-320 gir negativ verdi- går mot venstre 
-    v_angle_to_mouse = degrees_per_pixel*(midFrame[1]-posList[1]) #240-0= 240 gir positiv verdi- går opp
+    h_angle_to_mouse = round(degrees_per_pixel*(posList[0]-midFrame[0]), 4) #0-360=-360 gir negativ verdi- går mot venstre 
+    v_angle_to_mouse = round(degrees_per_pixel*(midFrame[1]-posList[1]), 4) #240-0= 240 gir positiv verdi- går opp
     send = "p"+str(h_angle_to_mouse)+","+str(v_angle_to_mouse)
     if not send == "skip":
         ser.write(send.encode())
@@ -231,22 +249,14 @@ def degrees_to_mouse(posList):
         buffer = "0,0,0,0".encode()
         send = "skip"
 
-def send_steps():
-    global grab
-    while grab:
-        data = ser.read_all()
-        if len(data.decode()) > 0:
-            if data.decode()[0] == 'c':
-                if len(data.decode()) <= 10: #c-000,-000
-                    #print(data.decode()[:-1])
-                    conn.send(data)
-threading._start_new_thread(send_steps, ())
 
 def grab_frame():
     global i, grab
     while grab:
         try:
             dslrFrame = dslr.read()
+            dslrFrame = cv2.resize(dslrFrame, (853, 480), interpolation = cv2.INTER_AREA) #853 korrigerer for feil aspectratio fra hdmi
+            dslrFrame = dslrFrame[0:480, 67:67+720]
             camFrame = cam.read()
             if i == 1:
                 dslrFrame_scaled = cv2.resize(dslrFrame, (int(dslrFrame.shape[1]*scale_percent/100), int(dslrFrame.shape[0]*scale_percent/100)), interpolation = cv2.INTER_AREA)
@@ -257,15 +267,14 @@ def grab_frame():
                     ser.write("0,0,0,0".encode())
                     buffer = "0,0,0,0".encode()
                     cv2.putText(dslrFrame, "LOST",(75,75),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
-                    #i = 0
+                    i = 0
                     #joy = True
             camServer.send(camFrame)
             dslrServer.send(dslrFrame)
         except Exception as e:
-            print("!!!!!!!!!!ERROR!!!!!!!!!!")
+            print("[grab]!!!!!!!!!!ERROR!!!!!!!!!!")
             print(e)
             error_blink()
-            exit()
 
 threading._start_new_thread(grab_frame, ())
     
@@ -273,15 +282,14 @@ while True:
     try:
         if buffer == b's': #må være her for å kunne bryte ut av while løkken
                 ser.write("h".encode())
-                time.sleep(3)
+                time.sleep(1)
                 grab = False
-                time.sleep(5)
+                time.sleep(4)
                 break
 
 
         if track_init:
                 bbox = (int(bbox[0]*scale_percent/100), int(bbox[1]*scale_percent/100),int(bbox[2]*scale_percent/100),int(bbox[3]*scale_percent/100))
-                print(bbox)
                 dslrFrame_scaled = cv2.resize(dslrFrame, (int(dslrFrame.shape[1]*scale_percent/100), int(dslrFrame.shape[0]*scale_percent/100)), interpolation = cv2.INTER_AREA)
                 
                 tracker = cv2.TrackerCSRT_create()
@@ -290,7 +298,7 @@ while True:
                 track_init = False
                 i = 1
     except Exception as e:
-            print("!!!!!!!!!!ERROR!!!!!!!!!!")
+            print("[while]!!!!!!!!!!ERROR!!!!!!!!!!")
             print(e)
             error_blink()
             break
@@ -304,7 +312,7 @@ cam.stop()
 camServer.close()
 s.close()
 ser.close()
-#time.sleep(10)
+time.sleep(3)
 RedLed.ChangeDutyCycle(0)
 RedLed.stop()
 BlueLed.stop()
