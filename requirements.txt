@@ -5,3 +5,4 @@ opencv-python==4.5.4.50
 RPi.GPIO>=0.7.0
 pyserial>=3.5
 zmq>=0.0.0
+simplejpeg>=1.6.3
