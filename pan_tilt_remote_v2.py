@@ -1,6 +1,6 @@
 """
 !DETTE ER HOVEDVERSJONEN AV PROGRAMMET. BRUKES AV REMOTE-SHORTCUT!
-versjon 2.9.5
+versjon 2.9.6
 """
 
 import PySimpleGUI as sg
@@ -111,7 +111,7 @@ layout_focal_input = [[sg.Text(size=(1,18))],[sg.Text(f'Brennvidde: {focal_lengh
 
 layout = [[sg.Text(justification=('right'), key='battery')], [sg.Column(layout_column, justification='center', element_justification='center', key='BASE'), sg.Column(layout_dslr, justification='center', element_justification='center', key='FULL_DSLR', visible=False), sg.Column(layout_focal_input, justification='center', element_justification='center', key='FOCAL_INPUT', visible=False)]]
 
-window = sg.Window('En', layout, location=(0, 0), size=(w, h)).Finalize()#sg.Window('En', layout, no_titlebar = True, keep_on_top = True, location=(0, 0), size=(w, h)).Finalize()
+window = sg.Window('En', layout, no_titlebar=True, location=(0, 0), size=(w, h)).Finalize()#sg.Window('En', layout, no_titlebar = True, keep_on_top = True, location=(0, 0), size=(w, h)).Finalize()
 graph = window["-DSLR-"]
 window.TKroot["cursor"] = "none"
 
@@ -234,7 +234,7 @@ def update_labels(button):
 #--------------------Programmet----------------------------------
 while True:
     try:
-        print(steps)
+        #print(steps)
         for event in pygame.event.get():
             if event.type == pygame.JOYBUTTONDOWN:
                 joyInput = True
