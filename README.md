@@ -31,6 +31,16 @@ Terminal=true
 Exec=/usr/bin/python3.9 /home/pi/Documents/AutoDSLR-main/shutdown.py
 StartupNotify=false
 Categories=Other
+
+cd /usr/local/lib/python3.9/dist-packages/vidgear/gears
+sudo nano netgear.py
+ctrl+"-"
+692
+endre fra 96 til 1
+ctrl+"x"
+y
+enter
+
 ```
 
 
