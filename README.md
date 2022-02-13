@@ -46,6 +46,8 @@ enter
 
 Problemer:
 
+Koden for remote er egt. utdatert. Noe feil med "ved klikk" 10x for mye eller noe
+
 Sliter med å få lock ved tracking
 
 Krasjer med error "Broken pipe" stadig
