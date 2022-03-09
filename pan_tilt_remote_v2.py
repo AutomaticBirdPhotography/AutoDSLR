@@ -314,7 +314,7 @@ while True:
                     tracking = False
                     point = True
                     update_labels("point")
-                    s.send("p{}".format(h_angle).encode())
+                    s.send("p{}".format(h_angle).encode())      #OBS! OBS! HER SKAL DET VEL VÆRE degrees_per_pixel SOM SENDES?
 
             elif event == 'OK':
                 update_focal()
