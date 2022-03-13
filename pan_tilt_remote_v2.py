@@ -1,6 +1,6 @@
 """
 !DETTE ER HOVEDVERSJONEN AV PROGRAMMET. BRUKES AV REMOTE-SHORTCUT!
-versjon 2.9.6
+versjon 2.9.7
 """
 
 import PySimpleGUI as sg
