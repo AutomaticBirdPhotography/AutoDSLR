@@ -131,6 +131,7 @@ def update_focal():
     global h_angle
     inn = values['brennvidde']
     h_angle = 2 * math.atan(float(h_sensor) / (2 * int(inn))) * (360 / (2 * math.pi))
+    degrees_per_pixel = h_angle/dslrFrame.shape[1]
     h_angle = round(h_angle, 2)
     window['tekst']. update("Brennvidde: " + values['brennvidde'] + f"mm, {h_angle}")
 
@@ -314,7 +315,7 @@ while True:
                     tracking = False
                     point = True
                     update_labels("point")
-                    s.send("p{}".format(h_angle).encode())      #OBS! OBS! HER SKAL DET VEL VÆRE degrees_per_pixel SOM SENDES?
+                    s.send("p{}".format(degrees_per_pixel).encode())      #OBS! OBS! HER SKAL DET VEL VÆRE degrees_per_pixel SOM SENDES?
 
             elif event == 'OK':
                 update_focal()
