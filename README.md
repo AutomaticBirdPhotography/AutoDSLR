@@ -37,7 +37,7 @@ Categories=Other
 cd /usr/local/lib/python3.9/dist-packages/vidgear/gears
 sudo nano netgear.py
 ctrl+"-"
-692
+681
 endre fra 96 til 1
 ctrl+"x"
 y
